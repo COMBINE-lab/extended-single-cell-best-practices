@@ -464,22 +464,18 @@ Next, we create a working directory, `af_xmpl_run`, and download and uncompress 
 ```bash
 # Create a working dir and go to the working directory
 ## The && operator helps execute two commands using a single line of code.
-mkdir af_xmpl_run && cd af_xmpl_run
+export AF_XMPL_RUN=$PWD/af_xmpl_run
+mkdir $AF_XMPL_RUN && cd $AF_XMPL_RUN
 
 # Fetch the example dataset and CB permit list and decompress them
 ## The pipe operator (|) passes the output of the wget command to the tar command.
 ## The dash operator (-) after `tar xzf` captures the output of the first command.
 ## - example dataset
-wget -qO- https://umd.box.com/shared/static/lx2xownlrhz3us8496tyu9c4dgade814.gz | tar xzf - --strip-components=1 -C .
+wget -qO- https://umd.box.com/shared/static/lx2xownlrhz3us8496tyu9c4dgade814.gz | tar xzf - --strip-components=1 -C $AF_XMPL_RUN
 ## The fetched folder containing the fastq files are called toy_read_fastq.
-fastq_dir="toy_read_fastq"
+FASTQ_DIR="$AF_XMPL_RUN/toy_read_fastq"
 ## The fetched folder containing the human ref files is called toy_human_ref.
-ref_dir="toy_human_ref"
-
-# Fetch CB permit list
-## the right chevron (>) redirects the STDOUT to a file.
-wget -qO- https://raw.githubusercontent.com/10XGenomics/cellranger/master/lib/python/cellranger/barcodes/3M-february-2018.txt.gz | gunzip - > 3M-february-2018.txt
-
+REF_DIR="$AF_XMPL_RUN/toy_human_ref"
 ```
 
 With the reference files (the genome FASTA file and the gene annotation GTF file) and read records (the FASTQ files) ready, we can now apply the raw data processing pipeline discussed above to generate the gene count matrix.
@@ -493,14 +489,16 @@ With the reference files (the genome FASTA file and the gene annotation GTF file
 1. [`simpleaf index`](https://simpleaf.readthedocs.io/en/latest/index-command.html) indexes the provided reference or makes a _splici_ reference (<u>splic</u>ed transcripts + <u>i</u>ntrons) and indexes it.
 2. [`simpleaf quant`](https://simpleaf.readthedocs.io/en/latest/quant-command.html) maps the sequencing reads against the indexed reference and quantifies the mapping records to generate a gene count matrix.
 
-More advanced usages and options for mapping with `simpleaf` can be found [here](https://simpleaf.readthedocs.io/en/latest/).
+More advanced usages and options for mapping with `simpleaf` can be found in its [documentaion](https://simpleaf.readthedocs.io/en/latest/). A comprehensive tutorial is also available at [here](https://combine-lab.github.io/alevin-fry-tutorials/2023/simpleaf-piscem/).
 
 When running `simpleaf index`, if a genome FASTA file (`-f`) and a gene annotation GTF file(`-g`) are provided, it will gererate a _splici_ reference and index it; if only a transcriptome FASTA file is provided (`--refseq`), it will directly index it. Currently, we recommend the _splici_ index.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # simpleaf needs the environment variable ALEVIN_FRY_HOME to store configuration and data.
 # For example, the paths to the underlying programs it uses and the CB permit list
-mkdir alevin_fry_home & export ALEVIN_FRY_HOME='alevin_fry_home'
+mkdir alevin_fry_home & export ALEVIN_FRY_HOME="$AF_XMPL_RUN/alevin_fry_home"
 
 # the simpleaf set-paths command finds the path to the required tools and write a configuration JSON file in the ALEVIN_FRY_HOME folder.
 simpleaf set-paths
@@ -509,10 +507,12 @@ simpleaf set-paths
 # Usage: simpleaf index -o out_dir [-f genome_fasta -g gene_annotation_GTF|--refseq transcriptome_fasta] -r read_length -t number_of_threads
 ## The -r read_lengh is the number of sequencing cycles performed by the sequencer to generate biological reads (read2 in Illumina).
 ## Publicly available datasets usually have the read length in the description. Sometimes they are called the number of cycles.
+INDEX_DIR="$AF_XMPL_RUN/simpleaf_index"
+
 simpleaf index \
--o simpleaf_index \
--f toy_human_ref/fasta/genome.fa \
--g toy_human_ref/genes/genes.gtf \
+-o $INDEX_DIR \
+-f $REF_DIR/fasta/genome.fa \
+-g $REF_DIR/genes/genes.gtf \
 -r 90 \
 -t 8
 ```
@@ -522,32 +522,39 @@ In the output directory `simpleaf_index`, the `ref` folder contains the _splici_
 The next step, `simpleaf quant`, consumes an index directory and the mapping record FASTQ files to generate a gene count matrix. This command encapsulates all the major steps discussed in this section, including mapping, cell barcode correction, and UMI resolution.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Collecting sequencing read files
 ## The reads1 and reads2 variables are defined by finding the filenames with the pattern "_R1_" and "_R2_" from the toy_read_fastq directory.
 reads1_pat="_R1_"
 reads2_pat="_R2_"
 
 ## The read files must be sorted and separated by a comma.
-### The find command finds the files in the fastq_dir with the name pattern
+### The find command finds the files in the FASTQ_DIR with the name pattern
 ### The sort command sorts the file names
 ### The awk command and the paste command together convert the file names into a comma-separated string.
-reads1="$(find -L ${fastq_dir} -name "*$reads1_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd,)"
-reads2="$(find -L ${fastq_dir} -name "*$reads2_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd,)"
+reads1="$(find -L ${FASTQ_DIR} -name "*$reads1_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd, -)"
+reads2="$(find -L ${FASTQ_DIR} -name "*$reads2_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd, -)"
 
 # simpleaf quant
 ## Usage: simpleaf quant -c chemistry -t threads -1 reads1 -2 reads2 -i index -u [unspliced permit list] -r resolution -m t2g_3col -o output_dir
+
+QUANT_DIR="$AF_XMPL_RUN/simpleaf_quant"
+
 simpleaf quant \
--c 10xv3 -t 8 \
+-i $INDEX_DIR/index \
 -1 $reads1 -2 $reads2 \
--i simpleaf_index/index \
 -u -r cr-like \
--m simpleaf_index/index/t2g_3col.tsv \
--o simpleaf_quant
+-c 10xv3 -t 8 \
+-m $INDEX_DIR/index/t2g_3col.tsv \
+-o $QUANT_DIR
 ```
 
 After running these commands, the resulting quantification information can be found in the `simpleaf_quant/af_quant/alevin` folder. Within this directory, there are three files: `quants_mat.mtx`, `quants_mat_cols.txt`, and `quants_mat_rows.txt`, which correspond, respectively, to the raw (unfiltered) cb$\times$feature count matrix, the gene names for each column of this matrix, and the corrected, filtered cell barcodes for each row of this matrix. The tail lines of these files are shown below. Of note here is the fact that `alevin-fry` was run in the USA-mode (<u>u</u>nspliced, <u>s</u>pliced, and <u>a</u>mbiguous mode), and so quantification was performed for both the spliced and unspliced status of each gene — the resulting `quants_mat_cols.txt` file will then have a number of rows equal to 3 times the number of annotated genes which correspond, to the names used for the spliced (S), unspliced (U), and splicing-ambiguous variants (A) of each gene.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Each line in `quants_mat.mtx` represents
 # a non-zero entry in the format row column entry
 $ tail -3 simpleaf_quant/af_quant/alevin/quants_mat.mtx
@@ -570,27 +577,32 @@ TGCTCGTGTTCGAAGG
 ACTGTGAAGAAATTGC
 ```
 
-We can load the raw (unfiltered) count matrix into Python as an [`AnnData`](https://anndata.readthedocs.io/en/latest/) object using the `load_fry` function from [`pyroe`](https://github.com/COMBINE-lab/pyroe). A similar function, [loadFry](https://rdrr.io/github/mikelove/fishpond/man/loadFry.html), has been implemented in the [`fishpond`](https://github.com/mikelove/fishpond) R package. 
+We can load the raw (unfiltered) count matrix into Python as an [`AnnData`](https://anndata.readthedocs.io/en/latest/) object using the `load_fry` function from [`pyroe`](https://github.com/COMBINE-lab/pyroe). A similar function, [loadFry](https://rdrr.io/github/mikelove/fishpond/man/loadFry.html), has been implemented in the [`fishpond`](https://github.com/mikelove/fishpond) Bioconductor package. 
 
 ```python
 # run in python
 import pyroe
+pyroe.__version__ # should >= 0.8.1
 
+# read raw count matrix including spliced and ambiguous UMIs
 quant_dir = 'simpleaf_quant/af_quant'
 adata_raw = pyroe.load_fry(quant_dir)
 
-total_count = adata_raw.X.T + + adata_raw.layers["unspliced"].T
+# define total count
+total_count = adata_raw.X.T + adata_raw.layers["unspliced"].T
 ```
 
-The default behavior loads the `X` layer of the `Anndata` object as the sum of the spliced and ambiguous counts for each gene and a separate `unspliced` layer as the unspliced counts. The `X` layer can be used directly for correction of ambient RNA, in other words, as the `adata_raw` object for `SoupX` in section [Quality Control](#count-matrix-quality-control). However, recent work{cite}`Pool2022` and [updated practices](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/release-notes) suggest that the inclusion of unspliced UMIs in the count matrix, even in single-cell RNA-seq data, may increase sensitivity and benefit downstream analyses. While the best way to make use of this information is the subject of ongoing research, since `alevin-fry` automatically quantifies spliced, unspliced, and ambiguous reads in each sample, the count matrix containing the total counts for each gene can be simply obtained as follows:
+The default behavior loads the `X` layer of the `Anndata` object as the sum of the spliced and ambiguous counts for each gene and a separate `unspliced` layer as the unspliced counts. However, recent work{cite}`Pool2022` and [updated practices](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/release-notes) suggest that the inclusion of unspliced UMIs in the count matrix, even in single-cell RNA-seq data, may increase sensitivity and benefit downstream analyses. While the best way to make use of this information is the subject of ongoing research, since `alevin-fry` automatically quantifies spliced, unspliced, and ambiguous reads in each sample, the count matrix containing the total counts for each gene can be simply obtained as follows:
 
 ```python
 # run in python
 import pyroe
 
+# read raw count matrix including all UMIs
 quant_dir = 'simpleaf_quant/af_quant'
 adata_raw = pyroe.load_fry(quant_dir, output_format={'X' : ['U','S','A']})
 
+# define total count
 total_count = adata_raw.X.T
 ```
 
@@ -617,17 +629,21 @@ is_cell = e.out$FDR <= 0.01
 is_cell[is.na(is_cell)] = FALSE
 ```
 
-Then, we create `adata`, the AnnData object corresponding to the filtered count matrix. 
+Then, we create `adata`, the AnnData object corresponds to the filtered count matrix. 
 
 ```python
+# run in python
+# clean up
 del(total_count)
 is_cell = list(is_cell)
 
+# create filtered adata
 adata = adata_raw[is_cell,:]
-
 ```
 
 Here, `adata_raw` and `adata` correspond to the AnnData objects with the same name in the {ref}`quality-control` section. More precisely, `adata_raw` is the raw gene-by-cell count matrix, equivalent to `raw_feature_bc_matrix.h5` in the Cell Ranger output; `adata` is the filtered gene-by-cell count matrix, equivalent to `filtered_feature_bc_matrix.h5` in the Cell Ranger output. 
+
+Defaultly, genes are named by their Ensembl ID in the count matrix. you can convert them into gene names using the `gene_id_to_name.tsv` file generated along with the _splici_ reference by `simpleaf index`. In this example, the file is in the `simpleaf_index/ref` directory 
 
 (raw-proc:example-map)=
 
@@ -645,13 +661,15 @@ First, we process the genome FASTA file and gene annotation GTF file to obtain t
 2. Indexing the _splici_ reference by calling `salmon index`
 
 ```bash
+cd $AF_XMPL_RUN
+
 # make splici reference
 ## Usage: pyroe make-splici genome_file gtf_file read_length out_dir
 ## The read_lengh is the number of sequencing cycles performed by the sequencer. Ask your technician if you are not sure about it.
 ## Publicly available datasets usually have the read length in the description.
 pyroe make-splici \
-${ref_dir}/fasta/genome.fa \
-${ref_dir}/genes/genes.gtf \
+${REF_DIR}/fasta/genome.fa \
+${REF_DIR}/genes/genes.gtf \
 90 \
 splici_rl90_ref
 
@@ -675,10 +693,15 @@ The _splici_ index can be found in the `salmon_index` directory.
 Next, we will map the sequencing reads recorded against the _splici_ index by calling [`salmon alevin`](https://salmon.readthedocs.io/en/latest/alevin.html). This will produce an output folder called `salmon_alevin` that contains all the information we need to process the mapped reads using `alevin-fry`.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Collect FASTQ files
+reads1_pat="_R1_"
+reads2_pat="_R2_"
+
 ## The filenames are sorted and separated by space.
-reads1="$(find -L $fastq_dir -name "*$reads1_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ')"
-reads2="$(find -L $fastq_dir -name "*$reads2_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ')"
+reads1="$(find -L $FASTQ_DIR -name "*$reads1_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ' -)"
+reads2="$(find -L $FASTQ_DIR -name "*$reads2_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ' -)"
 
 # Mapping
 ## Usage: salmon alevin -i index_dir -l library_type -1 reads1_files -2 reads2_files -p num_threads -o output_dir
@@ -701,6 +724,12 @@ Then, we execute the cell barcode correction and UMI resolution step using `alev
 3. The [`quant`](https://alevin-fry.readthedocs.io/en/latest/quant.html) command performs UMI resolution and quantification.
 
 ```bash
+cd $AF_XMPL_RUN
+
+# Fetch CB permit list
+## the right chevron (>) redirects the STDOUT to a file.
+wget -qO- https://raw.githubusercontent.com/10XGenomics/cellranger/master/lib/python/cellranger/barcodes/3M-february-2018.txt.gz | gunzip - > 3M-february-2018.txt
+
 # Cell barcode correction
 ## Usage: alevin-fry generate-permit-list -u CB_permit_list -d expected_orientation -o gpl_out_dir
 ## Here, the reads that map to the reverse complement strand of transcripts are filtered out by specifying `-d fw`.
