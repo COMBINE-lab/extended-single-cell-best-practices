@@ -440,7 +440,7 @@ In this example, we will use _chromosome 5_ of the human genome and its related 
 Before we start, we create a conda environment in the terminal and install the required package. `Simpleaf` depends on [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/), [`salmon`](https://salmon.readthedocs.io/en/latest/) and [`pyroe`](https://github.com/COMBINE-lab/pyroe). They are all available on `bioconda` and will be automatically installed when installing `simpleaf`.
 
 ```bash
-conda create -n af -y -c bioconda simpleaf
+conda create -n af -y -c bioconda -c conda-forge simpleaf
 conda activate af
 ```
 
@@ -453,9 +453,10 @@ To do this, you can replace the above commands with the following (instructions 
 from [here](https://github.com/Haydnspass/miniforge#rosetta-on-mac-with-apple-silicon-hardware)):
 
 ```bash
-CONDA_SUBDIR=osx-64 conda create -n af -y -c bioconda simpleaf   # create a new environment
+CONDA_SUBDIR=osx-64 conda create -n af -y -c bioconda -c conda-forge simpleaf   # create a new environment
 conda activate af
 conda env config vars set CONDA_SUBDIR=osx-64  # subsequent commands use intel packages
+conda activate af # reactive env
 ````
 
 Next, we create a working directory, `af_xmpl_run`, and download and uncompress the example dataset from a remote host.
@@ -489,7 +490,7 @@ With the reference files (the genome FASTA file and the gene annotation GTF file
 
 [Simpleaf](https://github.com/COMBINE-lab/simpleaf) is designed to simplify the `alevin-fry` interface for single-cell and nucleus raw data processing. It encapsulates the whole processing pipeline into two steps:
 
-1. [`simpleaf index`](https://simpleaf.readthedocs.io/en/latest/index-command.html) indexes the provided reference or makes a _splici_ reference (<u>splic</u>ed transcripts + <u>i</u>ntrons) and index it.
+1. [`simpleaf index`](https://simpleaf.readthedocs.io/en/latest/index-command.html) indexes the provided reference or makes a _splici_ reference (<u>splic</u>ed transcripts + <u>i</u>ntrons) and indexes it.
 2. [`simpleaf quant`](https://simpleaf.readthedocs.io/en/latest/quant-command.html) maps the sequencing reads against the indexed reference and quantifies the mapping records to generate a gene count matrix.
 
 More advanced usages and options for mapping with `simpleaf` can be found [here](https://simpleaf.readthedocs.io/en/latest/).
