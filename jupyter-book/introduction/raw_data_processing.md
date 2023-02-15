@@ -440,7 +440,7 @@ In this example, we will use _chromosome 5_ of the human genome and its related 
 Before we start, we create a conda environment in the terminal and install the required package. `Simpleaf` depends on [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/), [`salmon`](https://salmon.readthedocs.io/en/latest/) and [`pyroe`](https://github.com/COMBINE-lab/pyroe). They are all available on `bioconda` and will be automatically installed when installing `simpleaf`. If conda is not an option to you, see the [simpleaf tutorial](https://combine-lab.github.io/alevin-fry-tutorials/2023/simpleaf-piscem/) for more options! 
 
 ```bash
-conda create -n af -y -c bioconda -c conda-forge simpleaf
+conda create -n af -y -c conda-forge -c bioconda simpleaf
 conda activate af
 ```
 
@@ -465,7 +465,8 @@ Next, we create a working directory, `af_xmpl_run`, and download and uncompress 
 # Create a working dir and go to the working directory
 ## The && operator helps execute two commands using a single line of code.
 export AF_XMPL_RUN=$PWD/af_xmpl_run
-mkdir $AF_XMPL_RUN && cd $AF_XMPL_RUN
+mkdir $AF_XMPL_RUN 
+cd $AF_XMPL_RUN
 
 # Fetch the example dataset and CB permit list and decompress them
 ## The pipe operator (|) passes the output of the wget command to the tar command.
@@ -498,7 +499,8 @@ cd $AF_XMPL_RUN
 
 # simpleaf needs the environment variable ALEVIN_FRY_HOME to store configuration and data.
 # For example, the paths to the underlying programs it uses and the CB permit list
-mkdir alevin_fry_home & export ALEVIN_FRY_HOME="$AF_XMPL_RUN/alevin_fry_home"
+mkdir alevin_fry_home
+export ALEVIN_FRY_HOME="$AF_XMPL_RUN/alevin_fry_home"
 
 # the simpleaf set-paths command finds the path to the required tools and write a configuration JSON file in the ALEVIN_FRY_HOME folder.
 simpleaf set-paths
@@ -608,7 +610,7 @@ total_count = adata_raw.X.T
 
 Becuase we told `simpleaf` to output unfiltered quantification information (the raw gene-by-cell count matrix with all detected barcodes), here we also show how to use the `emptyDrops` function from the [DropletUtils](https://bioconductor.org/packages/release/bioc/html/DropletUtils.html) Bioconductor package to filter high confidence cells and generate the filtered count matrix. 
 
-Given the `total_count` matrix from the above code chunks, we call the `emptyDrops` function to filter high confidence cells and return an boolean list `is_cell` indicating if the barcodes are high confidence cells.
+Given the `total_count` matrix from the above code chunks, we call the `emptyDrops` function to filter high confidence cells and return an boolean list `is_cell` indicating if the barcodes are high confidence cells. To do this, we need to set up a python environment as in {ref}`quality-control`
 
 ```python
 # run in python
@@ -623,11 +625,19 @@ ro.pandas2ri.activate()
 anndata2ri.activate()
 
 %load_ext rpy2.ipython
+```
+
+Then, we call the emptyDrops function to filter high qulaity cells.
+
+```R
+# run in python
 %%R -i total_count -o is_cell
 e.out = DropletUtils::emptyDrops(total_count)
 is_cell = e.out$FDR <= 0.01
 is_cell[is.na(is_cell)] = FALSE
+
 ```
+
 
 Then, we create `adata`, the AnnData object corresponds to the filtered count matrix. 
 
