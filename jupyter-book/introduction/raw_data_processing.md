@@ -255,18 +255,18 @@ Several common strategies are used for cell barcode identification and correctio
 
 - Correction against a known list of _potential_ barcodes: Certain chemistries, such as 10x Chromium, draw CBs from a known pool of potential barcode sequences. Thus, the set of barcodes observed in any sample is expected to be a subset of this known list, often called a "whitelist", "permit list", or "pass list". In this case, a common strategy is to assume each barcode that exactly matches some element from the known list is correct and for all other barcodes to be correct against the known list of barcodes (i.e., to find barcodes from the permit list that are some small Hamming distance or edit distance away from the observed barcodes). This approach leverages the known permit list to allow efficient correction of many barcodes that have been potentially corrupted. However, one difficulty with this approach is that a given corrupted barcode may have multiple possible corrections in the permit list (i.e., its correction may be ambiguous). In fact, if one considers a barcode that is taken from the [10x Chromium v3 permit list](https://github.com/10XGenomics/cellranger/blob/master/lib/python/cellranger/barcodes/3M-february-2018.txt.gz) and mutated at a single position to a barcode not in the list, there is a $\sim 81\%$ chance that it sits at Hamming distance $1$ from two or more barcodes in the permit list. The probability of such collisions can be reduced by only considering correcting against barcodes from the known permit list, which, themselves, occur exactly in the given sample (or even only those that occur exactly in the given sample above some nominal frequency threshold). Also, information such as the base quality at the "corrected" position can be used to potentially break ties in the case of ambiguous corrections. Yet, as the number of assayed cells increases, insufficient sequence diversity in the set of potential cell barcodes increases the frequency of ambiguous corrections, and reads tagged with barcodes having ambiguous corrections are most commonly discarded.
 
-- Knee or elbow-based methods: If a set of potential barcodes is unknown — or even if it is known, but one wishes to correct directly from the observed data itself without consulting an external list — one can adopt a method based on the observation that the list of "true" or high-quality barcodes in a sample is likely those associated with the greatest number of reads.
+- Knee or elbow-based methods: If a set of potential barcodes is unknown — or even if it is known, but one wishes to correct directly from the observed data itself without consulting an external list — one can adopt a method based on the observation that the list of "true" or high-confidence barcodes in a sample is likely those associated with the greatest number of reads.
   To do this, one can construct the cumulative frequency plot of the barcodes, in which barcodes are sorted in descending order of the number of distinct reads or UMIs with which they are associated. Often, this ranked cumulative frequency plot will contain a "knee" or "elbow" – an inflection point that can be used to characterize frequently occurring barcodes from infrequent (and therefore likely erroneous) barcodes. Many methods exist for attempting to identify such an inflection point {cite}`Smith2017,Lun2019,He2022` as a likely point of discrimination between properly captured cells and empty droplets. Subsequently, the set of barcodes that appear "above" the knee can be treated as a permit list against which the rest of the barcodes may be corrected, as in the first method list above. Such an approach is flexible as it can be applied in chemistries that have an external permit list and those that don't. Further parameters of the knee-finding algorithms can be altered to yield more or less restrictive selected barcode sets. Yet, such an approach can have certain drawbacks, like a tendency to be overly conservative and sometimes failing to work robustly in samples where no clear knee is present.
 
-- Filtering and correction based on an expected cell count provided by the user: These approaches seek to estimate a robust list of high-quality or present barcodes in the cases where the CB frequency distribution may not have a clear knee or exhibit bimodality due to technical artifacts. In such an approach, the user provides an estimate of the expected number of assayed cells. Then, the barcodes are ordered by descending frequency, the frequency $f$ at a robust quantile index near the expected cell count is obtained, and all cells having a frequency within a small constant fraction of $f$ (e.g., $\ge \frac{f}{10}$) are considered as valid barcodes. Again, the remaining barcodes are corrected against this valid list by attempting to correct uniquely to one of these valid barcodes based on sequence similarity.
+- Filtering and correction based on an expected cell count provided by the user: These approaches seek to estimate a robust list of high-confidence or present barcodes in the cases where the CB frequency distribution may not have a clear knee or exhibit bimodality due to technical artifacts. In such an approach, the user provides an estimate of the expected number of assayed cells. Then, the barcodes are ordered by descending frequency, the frequency $f$ at a robust quantile index near the expected cell count is obtained, and all cells having a frequency within a small constant fraction of $f$ (e.g., $\ge \frac{f}{10}$) are considered as valid barcodes. Again, the remaining barcodes are corrected against this valid list by attempting to correct uniquely to one of these valid barcodes based on sequence similarity.
 
 - Filtering based on a forced number of valid cells: Perhaps the simplest approach, although potentially problematic, is for the user to directly provide the index in the sorted frequency plot above which barcodes will be considered valid. All barcodes with a frequency greater than or equal to the frequency at the selected index are considered valid and treated as constituting the permit list. The remaining set of barcodes is then corrected against this list using the same approach described in the other methods above. If there are at least as many distinct barcodes as the number of cells the user requests, then this many cells will always be selected. Of course, such an approach is only reasonable when the user has a good reason to believe that the threshold frequency should be set around the provided index.
 
-%In the `alevin-fry` framework, the frequency of every observed cell barcode is generated, and there are four customizable options to select the high-quality cell barcodes for downstream analysis:
+%In the `alevin-fry` framework, the frequency of every observed cell barcode is generated, and there are four customizable options to select the high-confidence cell barcodes for downstream analysis:
 
 ### Future challenges
 
-While cellular barcoding of high-throughput single-cell profiling has been a tremendously successful approach, some challenges still remain, especially as the scale of experiments continues to grow. For example, the design of a robust method for selecting high-quality cell barcodes from the set of all the observations is still an active area of research, with distinct challenges arising, e.g., between single-cell and single-nucleus experiments. Also, as single-cell technologies have advanced to profile increasing numbers of cells, insufficient sequence diversity in the CB sequence can result in sequence corrections leading to CB collision. Addressing this latter problem may require more intelligent barcode design methods and continuing increases in the lengths of oligonucleotides used for cell barcoding.
+While cellular barcoding of high-throughput single-cell profiling has been a tremendously successful approach, some challenges still remain, especially as the scale of experiments continues to grow. For example, the design of a robust method for selecting high-confidence cell barcodes from the set of all the observations is still an active area of research, with distinct challenges arising, e.g., between single-cell and single-nucleus experiments. Also, as single-cell technologies have advanced to profile increasing numbers of cells, insufficient sequence diversity in the CB sequence can result in sequence corrections leading to CB collision. Addressing this latter problem may require more intelligent barcode design methods and continuing increases in the lengths of oligonucleotides used for cell barcoding.
 
 (raw-proc:umi-resolution)=
 
@@ -380,7 +380,7 @@ The first section of an alevinQC report shows a summary of the input files and t
 The figure shows the plots in the alevinQC report of an example single-cell dataset, of which the cells are filtered using the "knee" finding method. Each dot represents a corrected cell barcode with its corrected profile.
 :::
 
-The first（top left) view in {numref}`raw-proc-fig-alevinqc-plots` shows the distribution of cell barcode frequency in decreasing order. In all plots shown above, each point represents a corrected cell barcode, with its x-coordinate corresponding to its cell barcode ferequency rank. In the top left plot, the y-coordinate corresponds to the observed frequency of the corrected barcode. Generally, this plot shows a "knee"-like pattern, which can be used to identify the initial list of high-quality barcodes. The red dots in the plot represent the cell barcodes selected as the high-quality cell barcodes in the case that "knee"-based filtering was applied. In other words, these cell barcodes contain a sufficient number of reads to be deemed high-quality and likely derived from truly present cells. Suppose an external permit list is passed in the CB correction step, which implies no internal algorithm was used to distinguish high-quality cell barcodes. In that case, all dots in the plot will be colored red, as all these corrected cell barcodes are processed throughout the raw data processing pipeline and reported in the gene count matrix. One should be skeptical of the data quality if the frequency is consistently low across all cell barcodes.
+The first（top left) view in {numref}`raw-proc-fig-alevinqc-plots` shows the distribution of cell barcode frequency in decreasing order. In all plots shown above, each point represents a corrected cell barcode, with its x-coordinate corresponding to its cell barcode ferequency rank. In the top left plot, the y-coordinate corresponds to the observed frequency of the corrected barcode. Generally, this plot shows a "knee"-like pattern, which can be used to identify the initial list of high-confidence barcodes. The red dots in the plot represent the cell barcodes selected as the high-confidence cell barcodes in the case that "knee"-based filtering was applied. In other words, these cell barcodes contain a sufficient number of reads to be deemed high-confidence and likely derived from truly present cells. Suppose an external permit list is passed in the CB correction step, which implies no internal algorithm was used to distinguish high-confidence cell barcodes. In that case, all dots in the plot will be colored red, as all these corrected cell barcodes are processed throughout the raw data processing pipeline and reported in the gene count matrix. One should be skeptical of the data quality if the frequency is consistently low across all cell barcodes.
 
 **3. Barcode collapsing**
 
@@ -392,7 +392,7 @@ The upper right plot in {numref}`raw-proc-fig-alevinqc-plots` shows the distribu
 
 **5. Quantification summary**
 
-Finally, a series of quantification summary plots, the bottom plots in {numref}`raw-proc-fig-alevinqc-plots`, compare the cell barcode frequency, the total number of UMIs after deduplication and the total number of non-zero genes using scatter plots. In general, in each plot, the plotted data should demonstrate a positive correlation, and, if high-quality filtering (e.g., knee filtering) has been performed, the high-quality cell barcodes should be well separated from the rest. Moreover, one should expect all three plots to convey similar trends. If using an external permit list, all the dots in the plots will be colored red, as all these cell barcodes are processed and reported in the gene count matrix. Still, we should see the correlation between the plots and the separation of the dots representing high-quality cells to others. If all of these metrics are consistently low across cells or if these plots convey substantially different trends, then one should be concerned about the data quality.
+Finally, a series of quantification summary plots, the bottom plots in {numref}`raw-proc-fig-alevinqc-plots`, compare the cell barcode frequency, the total number of UMIs after deduplication and the total number of non-zero genes using scatter plots. In general, in each plot, the plotted data should demonstrate a positive correlation, and, if high-confidence filtering (e.g., knee filtering) has been performed, the high-confidence cell barcodes should be well separated from the rest. Moreover, one should expect all three plots to convey similar trends. If using an external permit list, all the dots in the plots will be colored red, as all these cell barcodes are processed and reported in the gene count matrix. Still, we should see the correlation between the plots and the separation of the dots representing high-confidence cells to others. If all of these metrics are consistently low across cells or if these plots convey substantially different trends, then one should be concerned about the data quality.
 
 ```
 
@@ -401,11 +401,11 @@ Finally, a series of quantification summary plots, the bottom plots in {numref}`
 One of the first QC steps is determining which cell barcodes correspond to "high-confidence" sequenced cells. It is common in droplet-based protocols{cite}`raw:Macosko2015` that certain barcodes are associated with ambient {term}`RNA` instead of the {term}`RNA` of a captured cell. This happens when droplets fail to capture a cell. These empty droplets still tend to produce sequenced reads, though the characteristics of these reads look markedly different from those associated with barcodes corresponding to properly captured cells. Many approaches exist to assess whether a barcode likely corresponds to an empty droplet or not. One simple method is to examine the cumulative frequency plot of the barcodes, in which barcodes are sorted in descending order of the number of distinct UMIs with which they are associated. This plot often contains a "knee" that can be identified as a likely point of discrimination between properly captured cells and empty droplets{cite}`Smith2017,He2022`.
 While this "knee" method is intuitive and can often estimate a reasonable threshold, it has several drawbacks. For example, not all cumulative histograms display an obvious knee, and it is notoriously difficult to design algorithms that can robustly and automatically detect such knees. Finally, the total UMI count associated with a barcode may not, alone, be the best signal to determine if the barcode was associated with an empty or damaged cell.
 
-This led to the development of several tools specifically designed to detect empty or damaged droplets, or cells generally deemed to be of "low quality" {cite}`Lun2019,Heiser2021,Hippen2021,Muskovic2021,Alvarez2020,raw:Young2020`. These tools incorporate a variety of different measures of cell quality, including the frequencies of distinct UMIs, the number of detected genes, and the fraction of mitochondrial {term}`RNA`, and typically work by applying a statistical model to these features to classify high-quality cells from putative empty droplets or damaged cells. This means that cells can typically be scored, and a final filtering can be selected based on an estimated posterior probability that cells are not empty or compromised. While these models generally work well for single-cell {term}`RNA`-seq data, one may have to apply several additional filters or heuristics to obtain robust filtering in single-nucleus {term}`RNA`-seq data{cite}`Kaminow2021,He2022`, like those exposed in the [`emptyDropsCellRanger`](https://github.com/MarioniLab/DropletUtils/blob/master/R/emptyDropsCellRanger.R) function of `DropletUtils`{cite}`Lun2019`.
+This led to the development of several tools specifically designed to detect empty or damaged droplets, or cells generally deemed to be of "low quality" {cite}`Lun2019,Heiser2021,Hippen2021,Muskovic2021,Alvarez2020,raw:Young2020`. These tools incorporate a variety of different measures of cell quality, including the frequencies of distinct UMIs, the number of detected genes, and the fraction of mitochondrial {term}`RNA`, and typically work by applying a statistical model to these features to classify high-confidence cells from putative empty droplets or damaged cells. This means that cells can typically be scored, and a final filtering can be selected based on an estimated posterior probability that cells are not empty or compromised. While these models generally work well for single-cell {term}`RNA`-seq data, one may have to apply several additional filters or heuristics to obtain robust filtering in single-nucleus {term}`RNA`-seq data{cite}`Kaminow2021,He2022`, like those exposed in the [`emptyDropsCellRanger`](https://github.com/MarioniLab/DropletUtils/blob/master/R/emptyDropsCellRanger.R) function of `DropletUtils`{cite}`Lun2019`.
 
 ### Doublet detection
 
-In addition to determining which cell barcodes correspond to empty droplets or damaged cells, one may also wish to identify those cell barcodes that correspond to doublets or multiplets. When a given droplet captures two (doublets) or more (multiplets) cells, this can result in a skewed distribution for these cell barcodes in terms of quantities like the number of reads and UMIs they represent, as well as gene expression profiles they display. Many tools have also been developed to predict the doublet status of cell barcodes{cite}`DePasquale2019,McGinnis2019,Wolock2019,Bais2019,Bernstein2020`. Once detected, cells determined to likely be doublets and multiplets can be removed or otherwise adjusted for in the subsequent analysis.
+In addition to determining which cell barcodes correspond to empty droplets or damaged cells, one may also wish to identify those cell barcodes that correspond to doublets or multiplets, as discussed in the {ref}`quality-control` section. When a given droplet captures two (doublets) or more (multiplets) cells, this can result in a skewed distribution for these cell barcodes in terms of quantities like the number of reads and UMIs they represent, as well as gene expression profiles they display. Many tools have also been developed to predict the doublet status of cell barcodes{cite}`DePasquale2019,McGinnis2019,Wolock2019,Bais2019,Bernstein2020`. Once detected, cells determined to likely be doublets and multiplets can be removed or otherwise adjusted for in the subsequent analysis.
 
 (raw-proc:output-representation)=
 
@@ -427,20 +427,22 @@ Ultimately, the choice of a specific tool largely depends on the task at hand, a
 
 ## A real-world example
 
-Given that we have covered the concepts underlying various approaches for raw data processing, we now turn our attention to demonstrating how a specific tool (in this case, `alevin-fry`) can be used to process a small example dataset. To start, we need the sequenced reads from a single-cell experiment in [FASTQ format](https://en.wikipedia.org/wiki/FASTQ_format) and the reference (e.g., transcriptome) against which the reads will be mapped. Usually, a reference includes the genome sequences and the corresponding gene annotations of the sequenced species in the [FASTA](https://en.wikipedia.org/wiki/FASTA_format) and [GTF](https://useast.ensembl.org/info/website/upload/gff.html) format, respectively.
+Given that we have covered the concepts underlying various approaches for raw data processing, we now turn our attention to demonstrating how a specific tool (in this case, `alevin-fry`) can be used to process a small example dataset. To start, we need the sequenced reads from a single-cell or single-nucleus experiment in [FASTQ format](https://en.wikipedia.org/wiki/FASTQ_format) and the reference (e.g., transcriptome) against which the reads will be mapped. One can use the transcriptomic reference directly in the alevin-fry pipeline, or provide a genomic reference set to build an expanded transcriptomic reference, which will lead to improved accuracy{cite}`He2022`. Usually, a genomic reference set includes the genome build and the corresponding gene annotations of the sequenced species in the [FASTA](https://en.wikipedia.org/wiki/FASTA_format) and [GTF](https://useast.ensembl.org/info/website/upload/gff.html) format, respectively.
 
-In this example, we will use _chromosome 5_ of the human genome and its related gene annotations as the reference, which is a subset of the Human reference, [GRCh38 (GENCODE v32/Ensembl 98) reference](https://support.10xgenomics.com/single-cell-gene-expression/software/release-notes/build#GRCh38_2020A) from the 10x Genomics reference build. Correspondingly, we extract the subset of reads that map to the generated reference from a [human brain tumor dataset](https://www.10xgenomics.com/resources/datasets/200-sorted-cells-from-human-glioblastoma-multiforme-3-lt-v-3-1-3-1-low-6-0-0) from 10x Genomics.
+[`Alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/){cite}`He2022` is a fast, accurate, and memory-frugal single-cell and single-nucleus data processing tool. [Simpleaf](https://github.com/COMBINE-lab/simpleaf) is a program written in [rust](https://www.rust-lang.org/) that exposes a unified and simplified interface for processing some of the most common protocols and data types using the `alevin-fry` pipeline. A nextflow-based [workflow](https://github.com/COMBINE-lab/quantaf) tool also exists to process extensive collections of single-cell data. Here we will first show how to process single-cell raw data using two `simpleaf` commands. Then, we describe the complete set of `salmon alevin` and `alevin-fry` commands to which these `simpleaf` commands correspond, to outline where the steps described in this section occur, and to convey the possible different processing options. These commands will be run from the command line, and [`conda`](https://docs.conda.io/en/latest/) will be used for installing all of the software required for running this example. As `alevin-fry` and `simpleaf` provide the uniform workflow for processing single-cell RNA-seq experiments generated from isolated cells and isolated nuclei, the example run-through we show below can be applied to both single-cell and single-nucleus experiments.
 
-[`Alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/){cite}`He2022` is a fast, accurate, and memory-frugal single-cell and single-nucleus data processing tool. [Simpleaf](https://github.com/COMBINE-lab/simpleaf) is a program, written in [rust](https://www.rust-lang.org/), that exposes a unified and simplified interface for processing some of the most common protocols and data types using the `alevin-fry` pipeline. A nextflow-based [workflow](https://github.com/COMBINE-lab/quantaf) tool also exists to process extensive collections of single-cell data. Here we will first show how to process single-cell raw data using two `simpleaf` commands. Then, we describe the complete set of `salmon alevin` and `alevin-fry` commands to which these `simpleaf` commands correspond, to outline where the steps described in this section occur and to convey the possible different processing options. These commands will be run from the command line, and [`conda`](https://docs.conda.io/en/latest/) will be used for installing all of the software required for running this example.
+In this example, we will process the single-nucleus RNA-seq reads from the [sample 4 of donor 8 of a 10x Multiome data set](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM5828479) generated for a single cell data integration challenge at the NeurIPS conference 2021{cite}`raw:luecken2021a`. We will use the Human reference [GRCh38 (GENCODE v32/Ensembl 98) reference](https://support.10xgenomics.com/single-cell-gene-expression/software/release-notes/build#GRCh38_2020A) provided by 10x Genomics to build the transcriptomic reference for mapping the sequencing reads. The output [`AnnData`](https://anndata.readthedocs.io/en/latest/) objects from this example can be directly used in the {ref}`quality-control` chapter.
+
+**Of note** that because the input files for the following example are huge (~66 GB in total) and will take a non-trivial amount of time to download and process, one does not have to run this example before reading the following chapters, as the count matrix of this example dataset from the conference will be directly pulled from Figshare when it is called. For readers interested in the run-through on a smaller experiment, another [simpleaf tutorial](https://combine-lab.github.io/alevin-fry-tutorials/2023/simpleaf-piscem/) for processing a human PBMC dataset with about one thousand cells.
 
 (raw-proc:example-prep)=
 
 ### Preparation
 
-Before we start, we create a conda environment in the terminal and install the required package. `Simpleaf` depends on [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/), [`salmon`](https://salmon.readthedocs.io/en/latest/) and [`pyroe`](https://github.com/COMBINE-lab/pyroe). They are all available on `bioconda` and will be automatically installed when installing `simpleaf`.
+Before we start, we create a conda environment in the terminal and install the required package. `Simpleaf` depends on [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/), [`salmon`](https://salmon.readthedocs.io/en/latest/) and [`pyroe`](https://github.com/COMBINE-lab/pyroe). They are all available on `bioconda` and will be automatically installed when installing `simpleaf`. If conda is not an option for you, you can also install `simpleaf` and its dependencies manually or access them through a docker image as discussed in this [simpleaf tutorial](https://combine-lab.github.io/alevin-fry-tutorials/2023/simpleaf-piscem/).
 
 ```bash
-conda create -n af -y -c bioconda simpleaf
+conda create -n af -y -c conda-forge -c bioconda simpleaf piscem 10x_bamtofastq
 conda activate af
 ```
 
@@ -453,139 +455,249 @@ To do this, you can replace the above commands with the following (instructions 
 from [here](https://github.com/Haydnspass/miniforge#rosetta-on-mac-with-apple-silicon-hardware)):
 
 ```bash
-CONDA_SUBDIR=osx-64 conda create -n af -y -c bioconda simpleaf   # create a new environment
+CONDA_SUBDIR=osx-64 conda create -n af -y -c bioconda -c conda-forge simpleaf  piscem 10x_bamtofastq
 conda activate af
 conda env config vars set CONDA_SUBDIR=osx-64  # subsequent commands use intel packages
+conda activate af # reactive env
 ````
 
-Next, we create a working directory, `af_xmpl_run`, and download and uncompress the example dataset from a remote host.
+Next, we create a working directory, `af_xmpl_run`, and download the [human 2020-A GRCh38](https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/7.0#:~:text=References%20%2D%202020%2DA%20(July%207%2C%202020)) reference dataset from 10x Genomics and the read record files of the [RNA-sequencing reads of the Site 4 Donor 8](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM5828479) from the NeurIPS human bone marrow dataset.
+
+For this particular example dataset, we download the read records in the BAM format and then convert them into FASTQ format because the FASTQ files hosted by [NCBI](https://www.ncbi.nlm.nih.gov/sra) do not include the technical reads, which are required for processing the read records. For datasets with complete FASTQ records available, one can download the FASTQ records directly and pass the parent directory of the FASTQ files to the `FASTQ_DIR` variable.
 
 ```bash
-# Create a working dir and go to the working directory
-## The && operator helps execute two commands using a single line of code.
-mkdir af_xmpl_run && cd af_xmpl_run
+# Create working dirs
+export AF_XMPL_RUN=$PWD/af_xmpl_run
+DATA_DIR="$AF_XMPL_RUN/data"
+REF_DIR="$DATA_DIR/refdata-gex-GRCh38-2020-A"
+BAM_FILE="$DATA_DIR/site4_donor08_multiome_gex.possorted_genome_bam.bam"
+FASTQ_DIR="$DATA_DIR/site4_donor08_multiome_gex.possorted_fastqs"
+INDEX_DIR="$AF_XMPL_RUN/human-2020-A_splici_index"
+QUANT_DIR="$AF_XMPL_RUN/site4_donor08_multiome_gex_quant"
+CB_FILE="$DATA_DIR/site4_donor08_multiome_gex_quant_final_cbs.tsv"
+PL_FILE="$DATA_DIR/737K-arc-v1.txt"
+THREADS=16
 
-# Fetch the example dataset and CB permit list and decompress them
+# make directories
+mkdir -p $REF_DIR
+
+# go to working dir
+cd $AF_XMPL_RUN
+
+# Download reference genome and gene annotations and the example dataset
+# Fetch the human reference dataset and decompress them
 ## The pipe operator (|) passes the output of the wget command to the tar command.
 ## The dash operator (-) after `tar xzf` captures the output of the first command.
-## - example dataset
-wget -qO- https://umd.box.com/shared/static/lx2xownlrhz3us8496tyu9c4dgade814.gz | tar xzf - --strip-components=1 -C .
-## The fetched folder containing the fastq files are called toy_read_fastq.
-fastq_dir="toy_read_fastq"
-## The fetched folder containing the human ref files is called toy_human_ref.
-ref_dir="toy_human_ref"
+## - reference dataset
+wget -qO- https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2020-A.tar.gz | tar xzf - --strip-components=1 -C $REF_DIR
 
-# Fetch CB permit list
-## the right chevron (>) redirects the STDOUT to a file.
-wget -qO- https://raw.githubusercontent.com/10XGenomics/cellranger/master/lib/python/cellranger/barcodes/3M-february-2018.txt.gz | gunzip - > 3M-february-2018.txt
+## - Read files
+## the BAM records are downloaded and converted into the FASTQ format
+wget -O $BAM_FILE https://sra-pub-src-2.s3.amazonaws.com/SRR17693267/site4_donor08_multiome_gex.possorted_genome_bam.bam.1  
+bamtofastq --nthreads=$THREADS $BAM_FILE $FASTQ_DIR
 
+## save some space
+rm $DATA_DIR/site4_donor08_multiome_gex.possorted_genome_bam.bam
+
+## - final CB file
+wget -O $CB_FILE  https://umd.box.com/shared/static/fbl77dbkcr879n3plm5pzcv116wy9yeh.tsv
+
+# -permit list file
+wget -qO- https://umd.box.com/shared/static/i6o3f9jxklrmicwmttmojjrcaqbvlft4.gz | gunzip - > $PL_FILE
 ```
 
-With the reference files (the genome FASTA file and the gene annotation GTF file) and read records (the FASTQ files) ready, we can now apply the raw data processing pipeline discussed above to generate the gene count matrix.
+With the reference files (the genome build FASTA file and the gene annotation GTF file) and read records (the FASTQ files) ready, we can now apply the raw data processing pipeline discussed above to generate the gene count matrix.
 
 (raw-proc:example-simpleaf)=
 
 ### Simplified raw data processing pipeline
 
-[Simpleaf](https://github.com/COMBINE-lab/simpleaf) is designed to simplify the `alevin-fry` interface for single-cell and nucleus raw data processing. It encapsulates the whole processing pipeline into two steps:
+[Simpleaf](https://simpleaf.readthedocs.io/en/latest/) is designed to simplify the `alevin-fry` interface for single-cell and nucleus raw data processing. It encapsulates the whole processing pipeline into two steps:
 
-1. [`simpleaf index`](https://simpleaf.readthedocs.io/en/latest/index-command.html) indexes the provided reference or makes a _splici_ reference (<u>splic</u>ed transcripts + <u>i</u>ntrons) and index it.
+1. [`simpleaf index`](https://simpleaf.readthedocs.io/en/latest/index-command.html) indexes the provided reference or makes an augmented reference (< and indexes it.
 2. [`simpleaf quant`](https://simpleaf.readthedocs.io/en/latest/quant-command.html) maps the sequencing reads against the indexed reference and quantifies the mapping records to generate a gene count matrix.
 
-More advanced usages and options for mapping with `simpleaf` can be found [here](https://simpleaf.readthedocs.io/en/latest/).
-
-When running `simpleaf index`, if a genome FASTA file (`-f`) and a gene annotation GTF file(`-g`) are provided, it will gererate a _splici_ reference and index it; if only a transcriptome FASTA file is provided (`--refseq`), it will directly index it. Currently, we recommend the _splici_ index.
+When running `simpleaf index`, if a genome FASTA file (`--fasta`) and a gene annotation GTF file(`--gtf`) are provided, it will generate a _splici_ reference and index it; if a transcriptome FASTA file is provided (via `--refseq`), it will directly index it. Currently, we recommend the _splici_ index as it will help improve the accuracy{cite}`He2022`.
 
 ```bash
-# simpleaf needs the environment variable ALEVIN_FRY_HOME to store configuration and data.
-# For example, the paths to the underlying programs it uses and the CB permit list
-mkdir alevin_fry_home & export ALEVIN_FRY_HOME='alevin_fry_home'
+cd $AF_XMPL_RUN
 
-# the simpleaf set-paths command finds the path to the required tools and write a configuration JSON file in the ALEVIN_FRY_HOME folder.
+# simpleaf needs the environment variable ALEVIN_FRY_HOME to store configuration and other required files.
+mkdir alevin_fry_home
+export ALEVIN_FRY_HOME="$AF_XMPL_RUN/alevin_fry_home"
+
+# the simpleaf set-paths command finds the path to the required tools and writes a configuration JSON file in the ALEVIN_FRY_HOME folder.
 simpleaf set-paths
+
+## get the read length from the first read in the first reads2 file
+### pattern to find reads2 files
+reads2_pat="_R2_"
+### The find + head command prints the first encountered reads2 file in FASTQ_DIR 
+### The zcat command prints the compressed read file
+### The sed command grabs the second line from zcat output and quits at the third line
+### the wc command counts the number of characters in the sed output 
+rlen="$(echo -n $(zcat $(find -L ${FASTQ_DIR} -name "*$reads2_pat*" -type f | head -1) | sed -n '2p;3q') | wc -c)"
 
 # simpleaf index
 # Usage: simpleaf index -o out_dir [-f genome_fasta -g gene_annotation_GTF|--refseq transcriptome_fasta] -r read_length -t number_of_threads
 ## The -r read_lengh is the number of sequencing cycles performed by the sequencer to generate biological reads (read2 in Illumina).
 ## Publicly available datasets usually have the read length in the description. Sometimes they are called the number of cycles.
 simpleaf index \
--o simpleaf_index \
--f toy_human_ref/fasta/genome.fa \
--g toy_human_ref/genes/genes.gtf \
--r 90 \
--t 8
+--output $INDEX_DIR \
+--fasta $REF_DIR/fasta/genome.fa \
+--gtf $REF_DIR/genes/genes.gtf \
+--rlen $rlen \
+--threads $THREADS
 ```
 
-In the output directory `simpleaf_index`, the `ref` folder contains the _splici_ reference; The `index` folder contains the salmon index built upon the _splici_ reference.
+In the output directory `human-2020-A_splici_index`, the `ref` folder contains the _splici_ reference; The `index` folder contains the salmon index built upon the _splici_ reference.
 
-The next step, `simpleaf quant`, consumes an index directory and the mapping record FASTQ files to generate a gene count matrix. This command encapsulates all the major steps discussed in this section, including mapping, cell barcode correction, and UMI resolution.
+The next step, `simpleaf quant`, consumes an index directory and the sequencing reads' FASTQ files to generate a gene count matrix. This command encapsulates all the major steps discussed above, including mapping, cell barcode (CB) correction, and UMI resolution.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Collecting sequencing read files
 ## The reads1 and reads2 variables are defined by finding the filenames with the pattern "_R1_" and "_R2_" from the toy_read_fastq directory.
 reads1_pat="_R1_"
 reads2_pat="_R2_"
 
 ## The read files must be sorted and separated by a comma.
-### The find command finds the files in the fastq_dir with the name pattern
+### The find command finds the files in the FASTQ_DIR with the name pattern
 ### The sort command sorts the file names
-### The awk command and the paste command together convert the file names into a comma-separated string.
-reads1="$(find -L ${fastq_dir} -name "*$reads1_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd,)"
-reads2="$(find -L ${fastq_dir} -name "*$reads2_pat*" -type f | sort | awk -v OFS=, '{$1=$1;print}' | paste -sd,)"
+### The awk and paste command converts the file names into a comma-separated string.
+reads1="$(find -L ${FASTQ_DIR} -name "*$reads1_pat*" -type f | sort | paste -sd, -)"
+reads2="$(find -L ${FASTQ_DIR} -name "*$reads2_pat*" -type f | sort | paste -sd, -)"
 
 # simpleaf quant
 ## Usage: simpleaf quant -c chemistry -t threads -1 reads1 -2 reads2 -i index -u [unspliced permit list] -r resolution -m t2g_3col -o output_dir
 simpleaf quant \
--c 10xv3 -t 8 \
--1 $reads1 -2 $reads2 \
--i simpleaf_index/index \
--u -r cr-like \
--m simpleaf_index/index/t2g_3col.tsv \
--o simpleaf_quant
+--index $INDEX_DIR/index \
+--reads1 $reads1 --reads2 $reads2 \
+--unfiltered-pl $PL_FILE --resolution cr-like \
+--chemistry 10xv3 --threads $THREADS \
+--t2g-map $INDEX_DIR/index/t2g_3col.tsv \
+--output $QUANT_DIR
 ```
 
-After running these commands, the resulting quantification information can be found in the `simpleaf_quant/af_quant/alevin` folder. Within this directory, there are three files: `quants_mat.mtx`, `quants_mat_cols.txt`, and `quants_mat_rows.txt`, which correspond, respectively, to the count matrix, the gene names for each column of this matrix, and the corrected, filtered cell barcodes for each row of this matrix. The tail lines of these files are shown below. Of note here is the fact that `alevin-fry` was run in the USA-mode (<u>u</u>nspliced, <u>s</u>pliced, and <u>a</u>mbiguous mode), and so quantification was performed for both the spliced and unspliced status of each gene — the resulting `quants_mat_cols.txt` file will then have a number of rows equal to 3 times the number of annotated genes which correspond, to the names used for the spliced (S), unspliced (U), and splicing-ambiguous variants (A) of each gene.
+Notice that as this dataset is a part of a 10x Single Cell Multiome experiment, we need to pass a particular CB permit list file (via `--unfiltered-pl` flag). For standard 10X Chromium v2 and v3 datasets, one can set this flag without any value as `simpleaf` will download the permit list file automatically. After running these commands, the resulting quantification information can be found in the `$QUANT_DIR/af_quant/alevin` folder. Within this directory, there are three files: `quants_mat.mtx`, `quants_mat_cols.txt`, and `quants_mat_rows.txt`, which correspond, respectively, to the raw (unfiltered) CB$\times$feature count matrix, the gene (feature) names for each column of this matrix, and the corrected but unfiltered, cell barcodes that are detected in the experiment for each row of this matrix. The tail lines of these files are shown below. Of note here is the fact that `alevin-fry` was run in the USA-mode (<u>u</u>nspliced, <u>s</u>pliced, and <u>a</u>mbiguous mode), and so quantification was performed for both the spliced and unspliced status of each gene — the resulting `quants_mat_cols.txt` file will then have a number of rows equal to 3 times the number of annotated genes which correspond, to the names used for the spliced (S), unspliced (U), and splicing-ambiguous variants (A) of each gene.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Each line in `quants_mat.mtx` represents
 # a non-zero entry in the format row column entry
-$ tail -3 simpleaf_quant/af_quant/alevin/quants_mat.mtx
-138 58 1
-139 9 1
-139 37 1
+$ tail -3 $QUANT_DIR/af_quant/alevin/quants_mat.mtx
+273434 32447 1
+273434 46575 2
+273434 71066 1
 
 # Each line in `quants_mat_cols.txt` is a splice status
 # of a gene in the format (gene name)-(splice status)
-$ tail -3 simpleaf_quant/af_quant/alevin/quants_mat_cols.txt
-ENSG00000120705-A
-ENSG00000198961-A
-ENSG00000245526-A
+$ tail -3 $QUANT_DIR/af_quant/alevin/quants_mat_cols.txt
+ENSG00000286201-A
+ENSG00000286130-A
+ENSG00000288057-A
 
 # Each line in `quants_mat_rows.txt` is a corrected
 # (and, potentially, filtered) cell barcode
-$ tail -3 simpleaf_quant/af_quant/alevin/quants_mat_rows.txt
-TTCGATTTCTGAATCG
-TGCTCGTGTTCGAAGG
-ACTGTGAAGAAATTGC
+$ tail -3 $QUANT_DIR/af_quant/alevin/quants_mat_rows.txt
+AACAAAGGTGCTGTAA
+CGCTATGAGTGAACGA
+AATCATGTCTTGGACG
 ```
 
-We can load the count matrix into Python as an [`AnnData`](https://anndata.readthedocs.io/en/latest/) object using the `load_fry` function from [`pyroe`](https://github.com/COMBINE-lab/pyroe). A similar function, [loadFry](https://rdrr.io/github/mikelove/fishpond/man/loadFry.html), has been implemented in the [`fishpond`](https://github.com/mikelove/fishpond) R package.
+We can load the raw count matrix into Python as an [`AnnData`](https://anndata.readthedocs.io/en/latest/) object using the `load_fry` function from [`pyroe`](https://github.com/COMBINE-lab/pyroe). A similar function, [loadFry](https://rdrr.io/github/mikelove/fishpond/man/loadFry.html), has been implemented in the [`fishpond`](https://github.com/mikelove/fishpond) Bioconductor package. 
+
+For single-nucleus RNA-seq experiments like the one we processed above, we want to use the total counts of unspliced, spliced, and ambiguous UMIs in downstream analyses. For single-cell RNA-seq experiments, the convention is to include only the spliced and ambiguous UMIs. To do so, we need to pass an appropriate output format, the `output_format` argument of `pyroe.load_fry` in Python or the `outputFormat` argument of `fishpond::loadFry()` in R. We will also convert the variable names (genes' Ensembl ID) into gene names using the `gene_id_to_name.tsv` file generated along with the _splici_ reference by `simpleaf index`. In this example, the file is in the `$QUANT_DIR/ref` directory.
+
 
 ```python
+# run in python
 import pyroe
+import os
+pyroe.__version__ # should >= 0.8.1
+AF_XMPL_RUN = os.getenv('AF_XMPL_RUN')
+# read raw count matrix including unspliced, spliced, and ambiguous UMIs
+quant_dir = os.path.join(AF_XMPL_RUN, 'site4_donor08_multiome_gex_quant', 'af_quant')
+id2name_file = os.path.join(AF_XMPL_RUN, 'human-2020-A_splici_index', 'ref', 'gene_id_to_name.tsv')
+cb_file = os.path.join(AF_XMPL_RUN, 'data', 'site4_donor08_multiome_gex_quant_final_cbs.tsv')
+# return an X layer including all Unspliced (U), Spliced(S), and Ambiguous (A) UMIs
+custom_format = {'X' : ['U','S','A']}
 
-quant_dir = 'simpleaf_quant/af_quant'
-adata_sa = pyroe.load_fry(quant_dir)
+# for single-cell datasets, count unspliced UMIs separately: 
+# custom_format = {'X' : ['S','A'], 'unspliced' : ['U']}
+
+# load the unfiltered (raw) count matrix
+adata_raw = pyroe.load_fry(quant_dir, output_format=custom_format)
+
+# read gene name to id mapping generated by `simpleaf index`
+id2name = dict(map(str.split, open(id2name_file,"r")))
+
+# convert Ensembl ID to gene name and build adata_raw.var 
+adata_raw.var['gene_ids'] = adata_raw.var_names
+adata_raw.var['feature_types'] = 'Gene Expression'
+adata_raw.var['genome'] = 'GRCh38'
+adata_raw.var_names = [id2name[id] for id in adata_raw.var_names]
 ```
 
-The default behavior loads the `X` layer of the `Anndata` object as the sum of the spliced and ambiguous counts for each gene. However, recent work{cite}`Pool2022` and [updated practices](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/release-notes) suggest that the inclusion of intronic counts, even in single-cell RNA-seq data, may increase sensitivity and benefit downstream analyses. While the best way to make use of this information is the subject of ongoing research, since `alevin-fry` automatically quantifies spliced, unspliced, and ambiguous reads in each sample, the count matrix containing the total counts for each gene can be simply obtained as follows:
+As we have an expert-selected high-confidence cell barcode set produced for this particular dataset, we use it here to filter the raw count matrix. 
 
 ```python
-import pyroe
-
-quant_dir = 'simpleaf_quant/af_quant'
-adata_usa = pyroe.load_fry(quant_dir, output_format={'X' : ['U','S','A']})
+# run in Python
+# Filter barcode using an existing CB list
+final_cbs =[l.rstrip() for l in open(cb_file,"r")]
+adata = adata_raw[adata_raw.obs_names.isin(final_cbs),:]
 ```
+
+The `adata_raw` and `adata` objects in the following code chunks correspond to the `AnnData` objects with the same name in the {ref}`quality-control` section. More precisely, `adata_raw` is the unfiltered (raw) CB$\times$feature count matrix, equivalent to `raw_feature_bc_matrix.h5` in the Cell Ranger; `adata` is the filtered count matrix, equivalent to `filtered_feature_bc_matrix.h5` in the Cell Ranger. 
+
+
+```{admonition} A note on single-cell data processing
+
+For single-cell RNA-seq experiments, conventionally, we want to include only the spliced and ambiguous UMIs in the count matrix (the `adata.X` layer), as shown in the commented lines in the above code chunk. However, recent work{cite}`Pool2022` and [updated practices](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/release-notes) suggest that the inclusion of unspliced UMIs in the count matrix even in single-cell RNA-seq data, just as what we did for the example single-nucleus experiment, may increase sensitivity and benefit downstream analyses. While the best way to make use of this information is the subject of ongoing research, since `alevin-fry` automatically quantifies spliced, unspliced, and ambiguous reads in each sample, the count matrix containing the total counts for each gene can be simply obtained: just pass appropriate [output formats](https://pyroe.readthedocs.io/en/latest/processing_fry_quants.html#load-fry-notes) to `load_fry`.
+```
+
+(raw-proc:example-emptydrops)=
+#### High-confidence cell barcode detection using *emptyDrops*
+
+Although it is good to have an expert-selected cell barcode set, we can still apply dedicated cell calling algorithms to detect high-confidence CBs for experiments that don't have one. In this section, we discuss how to call the `emptyDrops` function from the [DropletUtils](https://bioconductor.org/packages/release/bioc/html/DropletUtils.html) Bioconductor package to filter CBs and generate the filtered count matrix from unfiltered quantification information exported by `simpleaf`（by specifying the `-u` argument when calling `simpelaf quant`） as we showed in this run through example. 
+
+We start by extracting the total count matrix from `adata_raw`, the AnnData object representing our unfiltered (raw) count matrix. If the `X` layer contains UMIs with all splicing statuses like what we showed in the above example, the total count matrix is `adata_raw.X`. If we split UMIs with different splicing statuses into layers, such as putting unspliced UMIs into the `unspliced` layer by defining `custom_format = {'X' : ['S','A'], 'unspliced' : ['U']}`, we need to add all layers together to get the total count matrix.
+
+```python
+# run in Python
+total_count = adata_raw.X.T.tocoo()
+# If having multiple layers, add them together
+# total_count = (adata_raw.X + adata_raw.layers["unspliced"]).T.tocoo()
+```
+
+Now, we call the `emptyDrops` function using the total count matrix `total_count` as the input to filter high-confidence CBs and return a boolean list `is_cell` indicating if the CBs are high-confidence CBs. To do this, please make sure that R is available in your environment, and [rpy2](https://rpy2.github.io/) and [DropletUtils](https://bioconductor.org/packages/release/bioc/html/DropletUtils.html) is installed. 
+
+```python
+import rpy2.robjects as ro
+from rpy2.robjects.packages import importr
+
+#  build an R sparse matrix for the raw count matrix
+r_Matrix = importr("Matrix")
+r_DropletUtils = importr("DropletUtils")
+m = r_Matrix.sparseMatrix(
+    i=ro.IntVector(total_count.row + 1),
+    j=ro.IntVector(total_count.col + 1),
+    x=ro.FloatVector(total_count.data),
+    dims=ro.IntVector(total_count.shape))
+
+# run emptyDrops and filter cells based on FDR
+fdr_thresh = 0.01
+out = r_DropletUtils.emptyDrops(m)
+FDR = list(out.slots['listData'].rx2("FDR"))
+is_cell = [False if np.isnan(v) else v <= fdr_thresh for v in FDR]
+
+# filter raw count matrix
+adata = adata_raw[is_cell,:]
+```
+
+As before, `adata_raw` and `adata` correspond to the AnnData objects with the same name in the {ref}`quality-control` section. 
 
 (raw-proc:example-map)=
 
@@ -593,38 +705,43 @@ adata_usa = pyroe.load_fry(quant_dir, output_format={'X' : ['U','S','A']})
 
 `Simpleaf` makes it possible to process single-cell raw data in the "standard" way with a few commands. Next, we will show how to generate the identical quantification result by explicitly calling the `pyroe`, `salmon`, and `alevin-fry` commands. On top of the pedagogical value, knowing the exact command of each step will be helpful if only a part of the pipeline needs to be rerun or if some parameters not currently exposed by `simpleaf` need to be specified.
 
-Please note that the commands in the {ref}`raw-proc:example-prep` section should be executed in advance. All the tools called in the following commands, `pyroe`, `salmon`, and `alevin-fry`, have already been installed when installing `simpleaf`.
+Please note that the commands in the {ref}`raw-proc:example-prep` section should be executed beforehand. All the tools called in the following commands, `pyroe`, `salmon`, and `alevin-fry`, have already been installed when installing `simpleaf`.
 
 #### Building the index
 
-First, we process the genome FASTA file and gene annotation GTF file to obtain the _splici_ index. The commands in the following code chunk are analogous the `simpleaf index` command discussed above. This includes two steps:
+First, we process the genome FASTA file and gene annotation GTF file to obtain the _splici_ index. The commands in the following code chunk are analogous to the `simpleaf index` command discussed above. This includes two steps:
 
 1. Building the _splici_ reference (<u>splic</u>ed transcripts + <u>i</u>ntrons) by calling `pyroe make-splici`, using the genome and gene annotation file
 2. Indexing the _splici_ reference by calling `salmon index`
 
 ```bash
+cd $AF_XMPL_RUN
+
+reads2_pat="_R2_"
+rlen="$(echo -n $(zcat $(find -L ${FASTQ_DIR} -name "*$reads2_pat*" -type f | head -1) | sed -n '2p;3q') | wc -c)"
+
 # make splici reference
 ## Usage: pyroe make-splici genome_file gtf_file read_length out_dir
-## The read_lengh is the number of sequencing cycles performed by the sequencer. Ask your technician if you are not sure about it.
-## Publicly available datasets usually have the read length in the description.
 pyroe make-splici \
-${ref_dir}/fasta/genome.fa \
-${ref_dir}/genes/genes.gtf \
-90 \
-splici_rl90_ref
+${REF_DIR}/fasta/genome.fa \
+${REF_DIR}/genes/genes.gtf \
+$rlen \
+$INDEX_DIR/ref
 
 # Index the reference
 ## Usage: salmon index -t extend_txome.fa -i idx_out_dir -p num_threads
 ## The $() expression runs the command inside and puts the output in place.
 ## Please ensure that only one file ends with ".fa" in the `splici_ref` folder.
 salmon index \
--t $(ls splici_rl90_ref/*\.fa) \
--i salmon_index \
--p 8
+-t $INDEX_DIR/ref/splici_fl84.fa \
+-i $INDEX_DIR/index \
+-p $THREADS
 
+# copy transcript name to gene name mapping to the index folder 
+cp $INDEX_DIR/ref/splici_fl84_t2g_3col.tsv $INDEX_DIR/index/t2g_3col.tsv
 ```
 
-The _splici_ index can be found in the `salmon_index` directory.
+After invoking the above commands, we can find the _splici_ reference in `$INDEX_DIR/ref` and the _splici_ index in `$INDEX_DIR/index`.
 
 (raw-proc:example-quant)=
 
@@ -633,21 +750,27 @@ The _splici_ index can be found in the `salmon_index` directory.
 Next, we will map the sequencing reads recorded against the _splici_ index by calling [`salmon alevin`](https://salmon.readthedocs.io/en/latest/alevin.html). This will produce an output folder called `salmon_alevin` that contains all the information we need to process the mapped reads using `alevin-fry`.
 
 ```bash
+cd $AF_XMPL_RUN
+
 # Collect FASTQ files
+reads1_pat="_R1_"
+reads2_pat="_R2_"
+
 ## The filenames are sorted and separated by space.
-reads1="$(find -L $fastq_dir -name "*$reads1_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ')"
-reads2="$(find -L $fastq_dir -name "*$reads2_pat*" -type f | sort | awk '{$1=$1;print}' | paste -sd' ')"
+reads1="$(find -L $FASTQ_DIR -name "*$reads1_pat*" -type f | sort | paste -sd' ' -)"
+reads2="$(find -L $FASTQ_DIR -name "*$reads2_pat*" -type f | sort | paste -sd' ' -)"
 
 # Mapping
 ## Usage: salmon alevin -i index_dir -l library_type -1 reads1_files -2 reads2_files -p num_threads -o output_dir
 ## The variable reads1 and reads2 defined above are passed in using ${}.
+## we recommend using BASH rather than ZSH
 salmon alevin \
--i salmon_index \
+-i $INDEX_DIR/index \
 -l ISR \
--1 ${reads1} \
--2 ${reads2} \
--p 8 \
--o salmon_alevin \
+-1 $reads1 \
+-2 $reads2 \
+-p $THREADS \
+-o $QUANT_DIR/af_map \
 --chromiumV3 \
 --sketch
 ```
@@ -655,42 +778,68 @@ salmon alevin \
 Then, we execute the cell barcode correction and UMI resolution step using `alevin-fry`. This procedure involves three `alevin-fry` commands:
 
 1. The [`generate-permit-list`](https://alevin-fry.readthedocs.io/en/latest/generate_permit_list.html) command is used for cell barcode correction.
-2. The [`collate`](https://alevin-fry.readthedocs.io/en/latest/collate.html) command filters out invalid mapping records, corrects cell barcodes and collates mapping records originating from the same corrected cell barcode.
-3. The [`quant`](https://alevin-fry.readthedocs.io/en/latest/quant.html) command performs UMI resolution and quantification.
+2. The [`collate`](https://alevin-fry.readthedocs.io/en/latest/collate.html) command filters out invalid mapping records, corrects cell barcodes, and collates mapping records originating from the same corrected cell barcode.
+3. The [`quant`](https://alevin-fry.readthedocs.io/en/latest/quant.html) command performs UMI resolution and generates the count matrix.
 
 ```bash
+cd $AF_XMPL_RUN
+
+# Fetch CB permit list
+## the right chevron (>) redirects the STDOUT to a file.
+
 # Cell barcode correction
 ## Usage: alevin-fry generate-permit-list -u CB_permit_list -d expected_orientation -o gpl_out_dir
 ## Here, the reads that map to the reverse complement strand of transcripts are filtered out by specifying `-d fw`.
 alevin-fry generate-permit-list \
--u 3M-february-2018.txt \
+-u $PL_FILE \
 -d fw \
--i salmon_alevin \
--o alevin_fry_gpl
+-i $QUANT_DIR/af_map \
+-o $QUANT_DIR/af_quant
 
 # Filter mapping information
 ## Usage: alevin-fry collate -i gpl_out_dir -r alevin_map_dir -t num_threads
 alevin-fry collate \
--i alevin_fry_gpl \
--r salmon_alevin \
--t 8
+-i $QUANT_DIR/af_quant \
+-r $QUANT_DIR/af_map \
+-t $THREADS
 
 # UMI resolution + quantification
 ## Usage: alevin-fry quant -r resolution -m txp_to_gene_mapping -i gpl_out_dir -o quant_out_dir -t num_threads
-## The file ends with `3col.tsv` in the splici_ref folder will be passed to the -m argument.
-## Please ensure that there is only one such file in the `splici_ref` folder.
 alevin-fry quant -r cr-like \
--m $(ls splici_rl90_ref/*3col.tsv) \
--i alevin_fry_gpl \
--o alevin_fry_quant \
--t 8
+-m $INDEX_DIR/index/t2g_3col.tsv \
+-i $QUANT_DIR/af_quant \
+-o $QUANT_DIR/af_quant \
+-t $THREADS
 ```
 
-After running these commands, the resulting quantification information can be found in `alevin_fry_quant/alevin`. Other relevant information concerning the mapping, CB correction, and UMI resolution steps can be found in the `salmon_alevin`, `alevin_fry_gpl`, and `alevin_fry_quant` folders, respectively.
+After running these commands, the resulting quantification information can be found in `site4_donor08_multiome_gex_quant/af_quant/alevin`. Other relevant information concerning the mapping, CB correction, and UMI resolution steps can be found in the `af_map` and `af_quant` folders, respectively.
 
-In the example given here, we demonstrate using `simpleaf` and `alevin-fry` to process a 10x Chromium 3' v3 dataset. `Alevin-fry` and `simpleaf` provide many other options for processing different single-cell protocols, including but not limited to Dropseq{cite}`raw:Macosko2015`, sci-RNA-seq3{cite}`raw:Cao2019` and other 10x Chromium platforms. A more comprehensive list and description of available options for different stages of processing can be found in the [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/) and [`simpleaf`](https://github.com/COMBINE-lab/simpleaf) documentation. `alevin-fry` also provides a [nextflow](https://www.nextflow.io/docs/latest/)-based workflow, called [quantaf](https://github.com/COMBINE-lab/quantaf), for conveniently processing many samples from a simply-defined sample sheet.
+In the example, we demonstrate using `simpleaf` and `alevin-fry` to process a 10x Chromium 3' v3 dataset. `Alevin-fry` and `simpleaf` provide many other options for processing different single-cell protocols, including but not limited to Dropseq{cite}`raw:Macosko2015`, sci-RNA-seq3{cite}`raw:Cao2019` and other 10x Chromium platforms. A more comprehensive list and description of available options for different stages of processing can be found in the [`alevin-fry`](https://alevin-fry.readthedocs.io/en/latest/) and [`simpleaf`](https://github.com/COMBINE-lab/simpleaf) documentation. `alevin-fry` also provides a [nextflow](https://www.nextflow.io/docs/latest/)-based workflow, called [quantaf](https://github.com/COMBINE-lab/quantaf), for conveniently processing many samples from a simply-defined sample sheet.
 
-Of course, similar resources exist for many of the other raw data processing tools referenced and described throughout this section, including [`zUMIs`](https://github.com/sdparekh/zUMIs/wiki){cite}`zumis`, [`alevin`](https://salmon.readthedocs.io/en/latest/alevin.html){cite}`Srivastava2019`, [`kallisto|bustools`](https://www.kallistobus.tools/){cite}`Melsted2021`, [`STARsolo`](https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md){cite}`Kaminow2021` and [`CellRanger`](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger). The [`scrnaseq`](https://nf-co.re/scrnaseq) pipeline from [`nf-core`](https://nf-co.re/) also provides a nextflow-based pipeline for processing single-cell RNA-seq data generated using a range of different chemistries and integrates several of the tools described in this section.
+Of course, similar resources exist for many of the other raw data processing tools referenced and described throughout this section, including [`zUMIs`](https://github.com/sdparekh/zUMIs/wiki){cite}`zumis`, [`alevin`](https://salmon.readthedocs.io/en/latest/alevin.html){cite}`Srivastava2019`, [`kallisto|bustools`](https://www.kallistobus.tools/){cite}`Melsted2021`, [`STARsolo`](https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md){cite}`Kaminow2021` and [`Cell Ranger`](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger). The [`scrnaseq`](https://nf-co.re/scrnaseq) pipeline from [`nf-core`](https://nf-co.re/) also provides a nextflow-based pipeline for processing single-cell RNA-seq data generated using a range of different chemistries and integrates several of the tools described in this section.
+
+### Processing the example dataset using Cell Ranger
+
+Although it has been shown that `alevin-fry` is a much faster and memory-frugal alternative of the Cell Ranger program from [10x Genomics](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger) that exhibit the same level of accuracy, in this section, we will still show the code to run Cell Ranger for the same example experiment. **Notice** that this might take hours to run and requires a non-trivial amount of disk and memory space. Before running the following commands, one should first invoke the commands in the {ref}`raw-proc:example-prep` section.
+
+```bash
+# make working dir
+CR_DIR="$AF_XMPL_RUN/cellranger_run"
+mkdir -p $CR_DIR
+cd $CR_DIR
+
+# Download cellranger
+wget -O cellranger-7.1.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.1.0.tar.gz?Expires=1683782303&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci03LjEuMC50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2ODM3ODIzMDN9fX1dfQ__&Signature=IMLNElyrNDH56HuEvuXgV-9DJGPnAVAf8QZ6hm9~PTqZQ4k~0Se0UO7v7g1ksLd2X9vKwJe4dCK~A13UjAWhCMZQhwPudmVm8ba6kmnjsZNNvYQciQZfHd2pWHB5SpHjcyE-iu3ZW3lZ2Tarv3RrtaAVf0RceBxakrAyEmjm70XjT3zn3gyjwhJKOfMUDFzn2vcVbeUyGJV8rJMUtoqqB5fUEdHdlA2LUCj1ScvFHxjozqv~-iFQlNO7MgK3Tf-z6hRw6Q57q2cJsScSH8MpqRbPorEiAgFlWQpU21QsHIZMqMw7fMPQid9mWSSyiOx0GFlw9JhqiXuoGoRjQKVE2g__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+tar -xzvf cellranger-7.1.0.tar.gz
+
+cellranger="$CR_DIR/cellranger-7.1.0/cellranger"
+
+# run cellranger count. The STAR index used in this process is downloaded as a part of the reference set 
+$cellranger count --id=site4_donor08_multiome_gex \
+                 --transcriptome=$REF_DIR \
+                 --fastqs=$FASTQ_DIR/site4_donor8_0_1_AAAHCHWHV,$FASTQ_DIR/site4_donor8_0_1_HNV5LBGXJ \
+                 --chemistry=ARC-v1
+```
 
 (raw-proc:useful-links)=
 
@@ -701,8 +850,6 @@ Of course, similar resources exist for many of the other raw data processing too
 [`Pyroe`](https://github.com/COMBINE-lab/pyroe) in python and [`roe`](https://github.com/COMBINE-lab/roe) in R provide helper functions for processing `alevin-fry` quantification information. They also provide an interface to the preprocessed datasets in [`quantaf`](https://combine-lab.github.io/quantaf).
 
 [`Quantaf`](https://github.com/COMBINE-lab/quantaf) is a nextflow-based workflow of the `alevin-fry` pipeline for conveniently processing a large number of single-cell and single-nucleus data based on the input sheets. The preprocessed quantification information of publicly available single-cell datasets is available on its [webpage](https://combine-lab.github.io/quantaf).
-
-[`Simpleaf`](https://github.com/COMBINE-lab/simpleaf) is a wrapper of the alevin-fry workflow that allows executing the whole pipeline, from making _splici_ reference to quanfitication as shown in the above example, using only two commands.
 
 Tutorials for processing scRNA-seq raw data from [the galaxy project](https://galaxyproject.org/) can be found at [here](https://training.galaxyproject.org/training-material/topics/transcriptomics/tutorials/scrna-preprocessing-tenx/tutorial.html) and [here](https://training.galaxyproject.org/training-material/topics/transcriptomics/tutorials/scrna-preprocessing/tutorial.html).
 
